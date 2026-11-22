@@ -69,9 +69,8 @@ pub(super) fn assemble(ctx: &Context, stacks: &[&ItemStack]) -> Option<ItemStack
     out.damage = (durability - remaining).max(0) as u32;
     // `setDamageValue(0)` still stores `minecraft:damage` unless the prototype's is 0:
     // without it a prototype with no damage stops being damageable.
-    let zero_is_prototype = info(first).is_some_and(|i| i.max_damage > 0 && i.damage == 0);
-    if out.damage == 0 && !zero_is_prototype {
-        out.data_mut().explicit_zero_damage = true;
+    if out.damage == 0 && info(first).and_then(|i| i.prototype_damage()) != Some(0) {
+        out.data_mut().set_zero_damage_patch(true);
     }
     // Only the curses of both survive, at the higher level.
     let (a, b) = (

@@ -406,6 +406,12 @@ const MODELLED: &[&str] = &[
     "minecraft:written_book_content",
 ];
 impl StackData {
+    /// Keep the live and saved presence of a zero DAMAGE patch in sync.
+    pub fn set_zero_damage_patch(&mut self, present: bool) {
+        self.damage_set = present;
+        self.explicit_zero_damage = present;
+    }
+
     pub fn custom_name_plain(&self) -> Option<String> {
         self.custom_name.as_ref().and_then(read_text)
     }
@@ -1644,10 +1650,8 @@ pub fn encode_components_with_items(stack: &ItemStack, items: &crate::items::Ite
         .any(|id| id == "minecraft:max_stack_size")
         && matches!(components.get("minecraft:max_stack_size"), Some(Tag::Int(size))
             if *size > 0 && *size as u32 == prototype.max_stack);
-    // A durable prototype carries DAMAGE 0 (`Item.Properties.durability`), so the
-    // explicit zero `components_tag` keeps for a stack-declared MAX_DAMAGE equals it.
-    let same_damage =
-        prototype.max_damage > 0 && matches!(components.get("minecraft:damage"), Some(Tag::Int(0)));
+    let same_damage = matches!(components.get("minecraft:damage"), Some(Tag::Int(0)))
+        && prototype.prototype_damage() == Some(0);
     if let Tag::Compound(entries) = &mut components {
         if same_stack_size {
             entries.remove(&JavaString::from("minecraft:max_stack_size"));
@@ -2157,24 +2161,19 @@ pub(crate) fn elide_prototype_fireworks(item: &str, data: &mut StackData) {
     }
 }
 
-/// A durable prototype (`Item.Properties.durability`) carries its MAX_DAMAGE
-/// and its DAMAGE (0 unless a pack changed it), so `PatchedDataComponentMap.set`
-/// keeps neither value in the patch.
+/// `PatchedDataComponentMap.set`: omit durability values supplied by the prototype.
 fn elide_prototype_durability(info: &ItemInfo, damage: u32, data: &mut StackData) {
-    if info.max_damage == 0 {
-        return;
-    }
-    if data
-        .other("minecraft:max_damage")
-        .and_then(crate::properties::component_int)
-        == Some(info.max_damage as i32)
+    if info.max_damage > 0
+        && data
+            .other("minecraft:max_damage")
+            .and_then(crate::properties::component_int)
+            == Some(info.max_damage as i32)
     {
         data.set_other("minecraft:max_damage", None);
     }
     // shortcut: only a prototype damage of 0 is elided; a damaged prototype keeps its patch.
-    if damage == 0 && info.damage == 0 {
-        data.damage_set = false;
-        data.explicit_zero_damage = false;
+    if damage == 0 && info.prototype_damage() == Some(0) {
+        data.set_zero_damage_patch(false);
     }
 }
 
@@ -3706,6 +3705,7 @@ mod carried_component_tests {
     fn prototype_equal_durability_is_not_a_stack_component() {
         let pickaxe = ItemInfo {
             max_damage: 1561,
+            components: vec!["minecraft:max_damage".into(), "minecraft:damage".into()],
             ..Default::default()
         };
         let saved = |id: &str, info: &ItemInfo, text: &str| {
@@ -3736,6 +3736,15 @@ mod carried_component_tests {
         );
         assert_eq!(
             saved("minecraft:stick", &ItemInfo::default(), "[damage=0]"),
+            Some(Tag::compound([("minecraft:damage", Tag::Int(0))]))
+        );
+        let max_only = ItemInfo {
+            max_damage: 1561,
+            components: vec!["minecraft:max_damage".into()],
+            ..Default::default()
+        };
+        assert_eq!(
+            saved("example:max_only", &max_only, "[damage=0,max_damage=1561]"),
             Some(Tag::compound([("minecraft:damage", Tag::Int(0))]))
         );
     }

@@ -292,6 +292,14 @@ pub struct ItemInfo {
     pub template: Option<Arc<str>>,
 }
 impl ItemInfo {
+    /// `Item.components().get(DAMAGE)`: a missing component and zero are distinct.
+    pub fn prototype_damage(&self) -> Option<i32> {
+        self.components
+            .iter()
+            .any(|id| id == "minecraft:damage")
+            .then_some(self.damage)
+    }
+
     /// Whether this item is the vanilla item `vanilla`, or a content mod's item
     /// copied from it: what vanilla's `instanceof` on the item's class asks
     /// (a content item copies its template's class, as a NeoForge mod's

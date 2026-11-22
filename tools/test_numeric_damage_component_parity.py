@@ -87,6 +87,9 @@ def program(full=False):
         cmd(f'/execute if data block 4 200 4 Items[{{Slot:{slot}b,components:{{"minecraft:damage":{expected}}}}}]'
             if expected else f'/execute unless data block 4 200 4 {path}.components."minecraft:damage"',
             case + '-typed-damage', 1, admission=False)
+    pickaxe = 'diamond_pickaxe[damage=0,max_damage=1561,custom_data={h18494:1}]'
+    cmd('/give @s ' + pickaxe, 'give-prototype', 1)
+    cmd('/clear @s ' + pickaxe + ' 0', 'count-prototype', 1)
     cmd('/data get block 4 200 4 Items', 'final-stacks', len(CASES), admission=False)
     cmd('/data get block 4 200 4', 'parent-block', diagnostic=True)
     cmd('/execute store result score end h087 run time query gametime', 'clock-end', diagnostic=True)

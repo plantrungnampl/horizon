@@ -1,7 +1,22 @@
 //! A stack's damage capacity, as `ItemStack.getMaxDamage` and
 //! `ItemStack.isDamageableItem` read it.
 
-use crate::items::{ItemStack, Items};
+use crate::items::{ItemInfo, ItemStack, Items};
+use horizon_core::nbt::Tag;
+
+/// Compare a durability component predicate with the live stack value, including its prototype.
+pub fn matches_component(stack: &ItemStack, info: Option<&ItemInfo>, id: &str, want: &Tag) -> bool {
+    let (removed, value) = match id {
+        "minecraft:damage" => ("!minecraft:damage", stack.effective_damage(info)),
+        "minecraft:max_damage" => ("!minecraft:max_damage", stack.max_damage(info)),
+        _ => return false,
+    };
+    stack
+        .data()
+        .is_none_or(|data| data.other(removed).is_none())
+        && stack.carries_component(info, id)
+        && crate::properties::component_int(want) == Some(value)
+}
 
 /// `ItemStack.getMaxDamage` when `ItemStack.isDamageableItem`, else 0:
 /// MAX_DAMAGE present, no UNBREAKABLE and DAMAGE present. A durable
@@ -37,9 +52,37 @@ mod tests {
     use super::*;
     use crate::item_data::{command_components, decode_components, encode_components_with_items};
     use crate::item_nbt::{item_from_nbt, item_to_nbt};
-    use horizon_core::nbt::Tag;
     use horizon_world::loot::PackOverlay;
     use std::fs;
+
+    #[test]
+    fn predicates_see_inherited_durability_overrides_and_removals() {
+        let info = ItemInfo {
+            max_damage: 1561,
+            components: vec!["minecraft:damage".into(), "minecraft:max_damage".into()],
+            ..Default::default()
+        };
+        for (input, damage, max) in [
+            ("[damage=0,max_damage=1561]", Some(0), Some(1561)),
+            ("[damage=7,max_damage=100]", Some(7), Some(100)),
+            ("[!damage]", None, Some(1561)),
+            ("[!max_damage]", Some(0), None),
+        ] {
+            let mut stack = ItemStack::new("minecraft:diamond_pickaxe", 1);
+            let tag = command_components(input).unwrap();
+            (stack.damage, stack.extra) =
+                crate::item_data::decode_components_for_item(&stack.item, Some(&info), Some(&tag));
+            for (id, expected) in [("minecraft:damage", damage), ("minecraft:max_damage", max)] {
+                for candidate in [0, 7, 100, 1561] {
+                    assert_eq!(
+                        matches_component(&stack, Some(&info), id, &Tag::Int(candidate)),
+                        expected == Some(candidate),
+                        "{input} {id}={candidate}"
+                    );
+                }
+            }
+        }
+    }
 
     /// A normally non-durable item type becomes damageable when the stack
     /// supplies DAMAGE as well: `ItemStack.isDamageableItem` asks for the
@@ -53,7 +96,7 @@ mod tests {
         fs::create_dir_all(root.join("data/minecraft/loot_table")).unwrap();
         fs::write(
             root.join("items.json"),
-            r#"{"minecraft:stick":{},"minecraft:diamond_pickaxe":{"minecraft:max_damage":1561}}"#,
+            r#"{"minecraft:stick":{},"minecraft:diamond_pickaxe":{"minecraft:max_damage":1561,"minecraft:damage":0},"test:max_only":{"minecraft:max_damage":20},"test:damaged":{"minecraft:max_damage":20,"minecraft:damage":3}}"#,
         )
         .unwrap();
         let defaults = horizon_world::item_defaults::read(&root).unwrap();
@@ -98,6 +141,12 @@ mod tests {
         assert_eq!(saved.get("minecraft:damage"), None);
         assert_eq!(saved.get("minecraft:max_damage"), Some(&Tag::Int(20)));
         assert_eq!(stack_max_damage(&items, &pickaxe), 20);
+        for id in ["test:max_only", "test:damaged"] {
+            let mut stack = ItemStack::new(id, 1);
+            (stack.damage, stack.extra) = decode_components(Some(&zero));
+            let saved = encode_components_with_items(&stack, &items).unwrap();
+            assert_eq!(saved.get("minecraft:damage"), Some(&Tag::Int(0)), "{id}");
+        }
 
         // MAX_DAMAGE alone does not supply DAMAGE.
         let only = command_components("[max_damage=20]").unwrap();

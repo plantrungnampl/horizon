@@ -3458,6 +3458,15 @@ impl Game<'_> {
                         .ok()
                         .map(|(t, _)| t);
                     match (present, value) {
+                        (_, Some(want))
+                            if matches!(
+                                id.as_str(),
+                                "minecraft:damage" | "minecraft:max_damage"
+                            ) =>
+                        {
+                            let info = self.items().get(&stack.item);
+                            horizon_items::durability::matches_component(stack, info, &id, &want)
+                        }
                         (Some(have), Some(want)) => {
                             horizon_client::nbt_path::compare_nbt(&want, Some(have))
                                 && horizon_client::nbt_path::compare_nbt(have, Some(&want))
