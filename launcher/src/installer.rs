@@ -254,8 +254,7 @@ fn register(dir: &Path, exe: &Path, version: &str) -> io::Result<()> {
     Ok(())
 }
 
-/// Uninstall copies that stepped aside in earlier runs and are no longer in use: in %TEMP%, and
-/// beside `install` (the install folder) when %TEMP% was on another drive.
+/// Removes unused uninstall copies from %TEMP% and the install volume's fallback folder.
 fn clean_aside(install: &Path) {
     let own = format!("{ASIDE_PREFIX}{}.exe", std::process::id());
     let temp = std::env::temp_dir();
@@ -277,7 +276,7 @@ fn clean_aside(install: &Path) {
 }
 
 /// Moves the running launcher out of `dir` so the folder can go: into %TEMP% when it is on the
-/// same drive, else beside `dir` as a hidden file (a rename never crosses volumes: os error 17).
+/// same drive, else beside `dir` (inside it for a volume root) as a hidden file.
 /// Windows deletes it at the next restart when the account may ask that (administrators), and
 /// the next setup or uninstall clears it anyway ([`clean_aside`]).
 fn step_aside(own: &Path, dir: &Path) -> io::Result<()> {
@@ -321,15 +320,20 @@ fn delete_at_restart(path: &Path) {
     unsafe { MoveFileExW(path.as_ptr(), std::ptr::null(), MOVEFILE_DELAY_UNTIL_REBOOT) };
 }
 
+fn install_exe(dir: &Path) -> Result<PathBuf, String> {
+    let volume_root = dir.is_absolute() && dir.parent().is_none() && dir.is_dir();
+    if dir.file_name().is_none() && !volume_root {
+        return Err(format!("{} is not a folder to install in.", dir.display()));
+    }
+    Ok(dir.join(BINARY))
+}
+
 /// Installs the launcher this process is into `options.dir`. Returns the installed `.exe`.
 pub fn install(options: &Options, progress: impl Fn(Step, f32)) -> Result<PathBuf, String> {
     let source = std::env::current_exe().map_err(|e| e.to_string())?;
     let dir = options.dir.clone();
-    if dir.file_name().is_none() {
-        return Err(format!("{} is not a folder to install in.", dir.display()));
-    }
+    let exe = install_exe(&dir)?;
     clean_aside(&dir);
-    let exe = dir.join(BINARY);
     progress(Step::Files, 0.05);
     fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     // Running the installed copy as the setup (`HORIZON_LAUNCHER_SETUP=1`) rewrites the shortcuts
@@ -636,6 +640,19 @@ pub fn run_quiet() -> Option<i32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn setup_accepts_a_volume_root_as_the_exact_destination() {
+        let cwd = std::env::current_dir().unwrap();
+        let root = cwd.ancestors().last().unwrap();
+        assert_eq!(
+            install_exe(root).unwrap(),
+            root.join("horizon-launcher.exe")
+        );
+        for incomplete in ["", ".", "..", "C:", r"\"] {
+            assert!(install_exe(Path::new(incomplete)).is_err(), "{incomplete}");
+        }
+    }
 
     #[test]
     fn scripted_setup_accepts_the_standard_folder_or_its_parent() {

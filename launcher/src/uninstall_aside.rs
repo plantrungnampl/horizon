@@ -2,21 +2,22 @@
 //!
 //! A running file can be renamed but not deleted, and only renamed within its volume: moving it
 //! into a %TEMP% on another drive fails with ERROR_NOT_SAME_DEVICE (os error 17). So it goes to
-//! %TEMP% when that is on the install folder's drive, else beside the install folder (its parent,
-//! always the same volume). Plain path text, so it is tested on every OS.
+//! %TEMP% when that is on the install folder's drive, else beside the install folder or inside
+//! it when installing at the volume root. Plain path text, so it is tested on every OS.
 
 /// The folders to try, in order, for the running launcher at `install\horizon-launcher.exe`.
-/// %TEMP% comes first only when it is on the same drive; the install folder's parent is the
-/// fallback either way (a %TEMP% behind a junction can still be another volume).
+/// %TEMP% comes first only when it is on the same drive. A fallback on the install volume
+/// is needed even then because %TEMP% may be behind a junction.
 pub fn aside_dirs(install: &str, temp: &str) -> Vec<String> {
     let mut dirs = Vec::new();
-    if let (Some(a), Some(b)) = (volume(install), volume(temp)) {
-        if a == b {
-            dirs.push(temp.to_string());
-        }
+    let install_volume = volume(install);
+    if install_volume.is_some() && install_volume == volume(temp) {
+        dirs.push(temp.to_string());
     }
-    if let Some(parent) = parent(install) {
+    if let Some(parent) = parent(install).filter(|p| volume(p) == install_volume) {
         dirs.push(parent);
+    } else if install_volume.is_some() {
+        dirs.push(install.to_string());
     }
     dirs
 }
@@ -71,6 +72,14 @@ mod tests {
             aside_dirs(r"\\nas\games\Horizon Launcher", r"C:\Temp"),
             vec![r"\\nas\games".to_string()]
         );
+    }
+
+    #[test]
+    fn a_volume_root_holds_its_own_uninstall_copy() {
+        for root in [r"D:\", r"\\?\D:\", r"\\nas\games", r"\\?\UNC\nas\games\"] {
+            assert_eq!(aside_dirs(root, r"C:\Temp"), vec![root]);
+        }
+        assert_eq!(aside_dirs(r"D:\", r"D:\Temp"), vec![r"D:\Temp", r"D:\"]);
     }
 
     #[test]
