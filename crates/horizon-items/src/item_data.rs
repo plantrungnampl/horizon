@@ -3973,7 +3973,8 @@ mod tests {
 
         let removed = "!minecraft:banner_patterns";
         let patch = Tag::compound([(removed, Tag::Compound(Default::default()))]);
-        (banner.damage, banner.extra) = decode_components_for_item(&banner.item, None, Some(&patch));
+        (banner.damage, banner.extra) =
+            decode_components_for_item(&banner.item, None, Some(&patch));
         assert_eq!(banner.data().unwrap().other(removed), patch.get(removed));
         assert_eq!(encode_components(&banner), Some(patch));
     }
