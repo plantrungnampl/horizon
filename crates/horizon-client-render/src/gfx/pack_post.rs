@@ -2475,6 +2475,18 @@ impl Refused {
     pub fn is_cancelled(&self) -> bool {
         self.reason == Self::CANCELLED
     }
+    /// The reason of a pack that found no room in video memory for what it makes as it loads:
+    /// not the pack's fault either, and the same files may load the next time.
+    const NO_ROOM: &str = "video memory is full";
+    pub(super) fn no_room() -> Self {
+        Self {
+            reason: Self::NO_ROOM.into(),
+            notes: Vec::new(),
+        }
+    }
+    pub fn is_no_room(&self) -> bool {
+        self.reason == Self::NO_ROOM
+    }
 }
 
 impl PackPost {
@@ -4947,6 +4959,18 @@ impl PackPost {
     pub fn has_shadow(&self) -> bool {
         self.shadow_targets.is_some()
             && (self.shadow_terrain.is_some() || self.shadow_water.is_some())
+    }
+
+    /// Whether the pack draws solid terrain into the shadow map with a program without a
+    /// geometry stage, which reads the arena page as the flat list's calls have it: one with a
+    /// geometry stage reads the flat list's indices itself, and its draws stay in that list, as
+    /// they do where no program draws them (`gfx::pack_shadow_indirect`).
+    pub fn shadow_solid_flat(&self) -> bool {
+        self.shadow_targets.is_some()
+            && self
+                .shadow_terrain
+                .as_ref()
+                .is_some_and(|p| p.geometry == 0)
     }
 
     /// Whether the pack draws the sky (disc, sunset, stars, void) itself.

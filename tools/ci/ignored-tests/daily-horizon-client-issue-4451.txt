@@ -17,6 +17,7 @@ horizon-client game::allay_jukebox_source_tests::control_an_allay_out_of_reach_s
 horizon-client game::allay_jukebox_source_tests::control_data_merge_keeps_the_dance_and_its_jukebox lib daily resources
 horizon-client game::allay_jukebox_source_tests::stopping_the_first_jukebox_stops_the_dance_until_the_other_plays_again lib daily resources
 horizon-client game::allay_pickup_cooldown_tests::an_allay_keeps_its_item_pickup_cooldown_memory lib daily resources
+horizon-client game::allay_pickup_cooldown_tests::an_allay_picks_up_wanted_item_in_reach_without_line_of_sight lib daily resources
 horizon-client game::allay_pickup_cooldown_tests::pickup_cooldown_saves_the_full_integer_value lib daily resources
 horizon-client game::allay_pickup_cooldown_tests::the_saved_pickup_cooldown_follows_the_model lib daily resources
 horizon-client game::api_values::small_values::recipe_tests::recipe_json_text_fields lib daily resources
@@ -645,6 +646,7 @@ horizon-client game::finalize_spawn::tests::the_striders_piglin_rider_needs_spaw
 horizon-client game::fireworks::events_tests::a_detonating_rocket_posts_one_explode_from_its_owner lib daily resources
 horizon-client game::fireworks::events_tests::a_falling_rocket_hits_the_ground_and_one_in_water_splashes lib daily resources
 horizon-client game::fireworks::events_tests::a_silent_rocket_bursts_without_blast_or_twinkle lib daily resources
+horizon-client game::fireworks::events_tests::another_players_boost_rocket_sits_at_their_rocket_hand lib daily resources
 horizon-client game::fireworks::events_tests::launching_from_a_block_and_while_gliding_use_the_rocket_up lib daily resources
 horizon-client game::fireworks::hit_attempt_tests::remaining_hit_callers_observe_refusals_and_zero_damage lib daily resources
 horizon-client game::fireworks::tests::a_flying_rocket_opens_a_motion_run_of_its_own lib daily resources
@@ -943,6 +945,7 @@ horizon-client game::living_attributes::tests::a_stand_the_dragon_and_a_player_t
 horizon-client game::living_attributes::tests::a_zombie_reads_its_defaults lib daily resources
 horizon-client game::living_attributes::tests::gear_knockback_is_read_again_only_when_the_gear_changes lib daily resources
 horizon-client game::living_attributes::tests::the_mob_attribute_packet_is_the_live_maps_instances lib daily resources
+horizon-client game::load_conditions::tests::feature_flag_conditions_use_world_and_reload_features_for_recipes_and_carvers lib daily resources
 horizon-client game::load_conditions::tests::load_conditions_recipe_reload_counts_and_failed_candidates_keep_old_recipes lib daily resources
 horizon-client game::loot_kill_guest_tests::an_empty_handed_guest_is_the_killer_and_a_missing_one_is_not lib daily resources
 horizon-client game::loot_kill_guest_tests::loot_kill_as_a_guest_is_killed_by_that_player lib daily resources
@@ -1689,6 +1692,7 @@ horizon-client game::native_level_refs::tests::block_state_reads_stored_ids_and_
 horizon-client game::native_level_refs::tests::block_transform_preview_preserves_state_and_marks_simulation lib daily resources
 horizon-client game::native_level_refs::tests::bounds_reads_follow_the_level_without_loading_chunks lib daily resources
 horizon-client game::native_level_refs::tests::check_light_queues_the_cell_with_the_light_edits lib daily resources
+horizon-client game::native_level_refs::tests::chunk_ticket_diagnostics_distinguish_direct_sources_and_propagated_status lib daily resources
 horizon-client game::native_level_refs::tests::fluid_flow_reads_the_current_that_pushes_entities lib daily resources
 horizon-client game::native_level_refs::tests::fluid_queries_answer_vanilla_values_at_a_position lib daily resources
 horizon-client game::native_level_refs::tests::forced_chunk_changes_the_ticket_sources_and_the_saved_set lib daily resources
@@ -1817,6 +1821,7 @@ horizon-client game::native_makes_piglins_neutral_tests::without_parts_a_calm_pi
 horizon-client game::native_makes_piglins_neutral_tests::without_parts_the_piglin_safe_armor_tag_decides lib daily resources
 horizon-client game::native_menu_refs::tests::a_server_closes_a_guests_menu_and_sets_their_selected_slot lib daily resources
 horizon-client game::native_menu_refs::tests::a_stack_is_thrown_from_the_eyes_as_player_drop_does lib daily resources
+horizon-client game::native_menu_refs::tests::container_screen_reports_live_hover_and_capacity_in_menu_order lib daily resources
 horizon-client game::native_menu_refs::tests::inventory_boxes_follow_menu_indices_and_the_input_layout lib daily resources
 horizon-client game::native_menu_refs::tests::menus_read_storage_and_invalidate_on_replacement_wrap_and_reconnect lib daily resources
 horizon-client game::native_menus::tests::a_menu_opened_in_place_sends_no_close_returns_the_cursor_and_ignores_the_old_window lib daily resources
@@ -2191,6 +2196,7 @@ horizon-client game::persist::trader_llama_discard_tests::a_trader_llama_leaves_
 horizon-client game::perspective::preview_tests::player_render_transform_uses_vanilla_avatar_scale lib daily resources
 horizon-client game::piglin_admire_tests::piglin_admire_hit_keeps_baby_gold_and_cancels_adult_barter lib daily resources
 horizon-client game::piglin_admire_tests::piglin_admire_preserves_components_on_death_and_finish lib daily resources
+horizon-client game::piglin_admire_tests::piglin_picks_up_wanted_item_in_reach_without_line_of_sight lib daily resources
 horizon-client game::piglins::tests::a_throw_swings_the_off_hand_once lib daily resources
 horizon-client game::piston_carry::tests::a_restored_carried_chest_lands_with_world_item_stacks lib daily resources
 horizon-client game::piston_carry::tests::a_save_mid_move_keeps_the_carried_block_entity_and_a_bad_key_is_left_out lib daily resources

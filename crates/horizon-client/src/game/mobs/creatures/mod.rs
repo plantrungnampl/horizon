@@ -3460,9 +3460,9 @@ impl Game<'_> {
                 | MobEvent::SchoolSize { .. }
                 | MobEvent::PufferfishSting { .. } => {}
                 e @ MobEvent::LeashBreak { at: Some(_), .. } => self.leash_break_event(e),
-                MobEvent::LeashBreak { mob, drop, sound, .. } => {
-                    self.tick_break_leash(mob, drop, sound)
-                }
+                MobEvent::LeashBreak {
+                    mob, drop, sound, ..
+                } => self.tick_break_leash(mob, drop, sound),
                 MobEvent::NotifyLeashHolder { holder } => {
                     if let Some(m) = self.mobs.iter_mut().find(|m| m.id == holder) {
                         horizon_client::mobs::happy_ghast::notify_leash_holder(m);
@@ -5254,7 +5254,21 @@ impl Game<'_> {
             }
         }
         if keep {
-            self.add_projectile(arrow);
+            self.return_projectile(arrow);
+        }
+    }
+    /// Puts a projectile that never left the level (such as a bounced or dodged arrow) back at its
+    /// original join-order slot without firing `projectile_launch` again.
+    fn return_projectile(&mut self, p: Projectile) {
+        if p.join.is_joined() {
+            let join = p.join;
+            let at = self
+                .creatures
+                .projectiles
+                .partition_point(|q| q.join < join);
+            self.creatures.projectiles.insert(at, p);
+        } else {
+            self.creatures.projectiles.push(p);
         }
     }
     /// `ThrownEnderpearl.onHit` for a living non-player owner: the same hook,
@@ -5917,6 +5931,18 @@ impl Game<'_> {
                 self.item_burst(atp, "minecraft:egg");
             }
             (ProjectileKind::EnderPearl, hit) => {
+                // ThrownEnderpearl.onHit: 32 PORTAL particles at the impact,
+                // drawn from the pearl's own random before the teleport. The
+                // server's addParticle sends nothing: each client draws its own
+                // burst where the pearl lands there (`remote_projectile_tick`).
+                let mut random = p.random.0.clone();
+                let portal = horizon_client::particles::ParticleOptions::simple(
+                    horizon_client::particles::ParticleType::Portal,
+                );
+                let sparks = super::remote_projectiles::ender_pearl_sparks(p.position, &mut random);
+                for (at, v) in sparks {
+                    self.particles.add(&portal, at, v);
+                }
                 if let Hit::Entity {
                     who: Who::Player, ..
                 } = hit
@@ -8129,7 +8155,16 @@ impl Game<'_> {
                 .then(|| self.remote_player_name(mob.id))
                 .flatten()
                 .map(|name| PlayerRender { name, local: false });
-            let pre = self.mod_render_pre(mob, who, hooks, alpha as f32, camera, packed, out);
+            let pre = self.mod_render_pre(
+                mob,
+                who,
+                hooks,
+                alpha as f32,
+                camera,
+                packed,
+                Default::default(),
+                out,
+            );
             let Some(hidden) = pre else {
                 // What the mods drew in its place is culled as the entity's own would be.
                 if culling.rays_only() {
@@ -8140,6 +8175,9 @@ impl Game<'_> {
                 self.lit_posed_entity(entity_start..out.len(), posed_start);
                 continue;
             };
+            // What it wears and holds as a mod's `render_worn_equipment` lets it be drawn, until
+            // the next entity: its armour and body layers, wings, held and head items read it.
+            let _equipment = self.mod_render_equipment(mob, false, alpha as f32);
             // A mod's renderer for the type (`register_entity_renderers`) draws in place of its
             // model and vanilla layers; the mods' layers and post hooks still follow.
             let modded = self.mod_living_renderer_geometry(mob, alpha as f32, camera, packed, out);

@@ -486,6 +486,8 @@ enum OwnProfile {
 pub(super) struct Remote {
     pub(super) professions: Arc<horizon_client::mobs::villager::ResolvedProfessions>,
     pub session: Session,
+    /// A network session, not the integrated server's memory connection or a replay.
+    pub(super) external_server: bool,
     pub brand: String,
     pub(super) recipe_viewer: crate::game::recipe_book::ViewerChannels,
     /// This connection's configured feature flags, carried through reconfiguration.
@@ -722,10 +724,13 @@ pub(super) struct Remote {
     pub(super) glowing: std::collections::HashSet<i32>,
     /// The player's own shared flag 5 (`Entity.isInvisible`) as the server last set it.
     pub(super) own_invisible: bool,
+    /// The player's own shared flag 6 (`Entity.isCurrentlyGlowing` on a client) as the
+    /// server last set it: its Glowing tag or effect.
+    pub(super) own_glowing: bool,
     /// The player's own shared flag 0 (`Entity.isOnFire`) as the server last
     /// set it: its fire (blaze fireballs, fire aspect, lightning) never
     /// reaches the window's own `fire_ticks` otherwise.
-    own_on_fire: bool,
+    pub(in crate::game) own_on_fire: bool,
     /// `LivingEntity.DATA_ARROW_COUNT_ID` and `DATA_STINGER_COUNT_ID` of the
     /// own player, as the server synced them.
     pub(super) own_arrows: i32,
@@ -737,7 +742,7 @@ pub(super) struct Remote {
     /// body draws it until the local pose changes.
     pub(super) own_pose: Option<(crate::pose::Pose, crate::pose::Pose)>,
     /// The local player's profile UUID (always in the level).
-    pub(super) profile: u128,
+    pub(in crate::game) profile: u128,
     /// The local player's profile name: its score holder and team member.
     pub(super) profile_name: String,
     /// `MultiPlayerGameMode.destroyBlockPos`, `.destroyProgress` and the face last sent: the block
@@ -1410,6 +1415,15 @@ impl Game<'_> {
     ) -> (InteractionResult, DryUse) {
         self.remote_block_reacts_body(hit, held)
     }
+    fn remote_block_reacts_hand(
+        &mut self,
+        hand: Hand,
+        hit: &super::Hit,
+        held: Option<&ItemStack>,
+    ) -> (InteractionResult, DryUse) {
+        self.remote_block_reacts_hand_body(hand, hit, held)
+    }
+    #[allow(dead_code)] // the mod API's point; the hand-aware one is what the game calls
     pub(super) fn remote_block_template(
         &mut self,
         hit: &super::Hit,
@@ -1417,6 +1431,15 @@ impl Game<'_> {
         without_item: bool,
     ) -> (InteractionResult, DryUse) {
         self.remote_block_template_body(hit, held, without_item)
+    }
+    pub(super) fn remote_block_template_hand(
+        &mut self,
+        hand: Hand,
+        hit: &super::Hit,
+        held: Option<&ItemStack>,
+        without_item: bool,
+    ) -> (InteractionResult, DryUse) {
+        self.remote_block_template_hand_body(hand, hit, held, without_item)
     }
     fn predict_place(&mut self, (pos, changes): &DryPlace, seq: i32) {
         self.predict_place_body((pos, changes), seq)
@@ -2060,6 +2083,9 @@ impl horizon_client::interaction_input::TargetUseWorld for RemoteUseWorld<'_, '_
 impl horizon_client::interaction_input::InteractionWorld for RemoteInputWorld<'_, '_> {
     fn pick_hit_result(&mut self) {
         self.0.pick_tick_targets();
+    }
+    fn queued_keys(&mut self) {
+        self.0.remote_queued_keys();
     }
     fn release_hit_result(&mut self) {
         self.0.release_tick_targets();

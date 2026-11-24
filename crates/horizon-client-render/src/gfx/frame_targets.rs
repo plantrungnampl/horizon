@@ -23,7 +23,9 @@ pub(crate) enum Kind {
     Transparency,
     Visibility,
     FrameGeneration,
+    ShadowDraws,
     Buffers,
+    PackAtlas,
     Pack,
 }
 
@@ -39,7 +41,12 @@ impl Kind {
             Kind::Transparency => "Improved Transparency is off until the window's size changes",
             Kind::Visibility => "solid terrain draws without the visibility buffer",
             Kind::FrameGeneration => "frame generation is off until the window's size changes",
+            Kind::ShadowDraws => {
+                "a shader pack's shadow map takes its solid terrain from the flat list until there \
+                 is room for its indirect draws"
+            }
             Kind::Buffers => "a frame that needs a larger buffer is skipped",
+            Kind::PackAtlas => "no room for the shader pack's block atlas; the pack is not loaded",
             Kind::Pack => {
                 "no room for what the shader pack draws into; frames are skipped until there is"
             }
