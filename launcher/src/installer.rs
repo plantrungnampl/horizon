@@ -124,6 +124,15 @@ pub fn folder_for(chosen: &Path) -> PathBuf {
     }
 }
 
+/// The folder for a scripted `--dir`: an install already there (the wizard allows any name) is
+/// updated in place, else [`folder_for`].
+fn scripted_dir(installed: Option<&Path>, chosen: &Path) -> PathBuf {
+    match installed {
+        Some(dir) if same_path(dir, chosen) => dir.to_path_buf(),
+        _ => folder_for(chosen),
+    }
+}
+
 /// The install this account has, if its launcher is still there.
 pub fn installed() -> Option<Installed> {
     let installed = registered()?;
@@ -381,10 +390,9 @@ fn remove_install_files(dir: &Path, left: &mut Vec<String>) {
     }
     if named(dir, APP_NAME) {
         if let Err(e) = fs::remove_dir(dir) {
-            if !matches!(
-                e.kind(),
-                io::ErrorKind::NotFound | io::ErrorKind::DirectoryNotEmpty
-            ) {
+            // Something else lives there now (a file the launcher didn't make): say so, unless
+            // what stayed is listed above.
+            if e.kind() != io::ErrorKind::NotFound && left.is_empty() {
                 left.push(format!("{}: {e}", dir.display()));
             }
         }
@@ -619,7 +627,10 @@ pub fn run_quiet() -> Option<i32> {
                 .position(|a| a == "--dir")
                 .and_then(|i| args.get(i + 1))
             {
-                options.dir = folder_for(Path::new(dir));
+                options.dir = scripted_dir(
+                    installed().as_ref().map(|i| i.dir.as_path()),
+                    Path::new(dir),
+                );
             }
             options.desktop = flag("--desktop-shortcut");
             Some(match install(&options, |_, _| {}) {
@@ -664,6 +675,46 @@ mod tests {
             folder_for(Path::new(r"C:\Games\horizon launcher")),
             PathBuf::from(r"C:\Games\horizon launcher")
         );
+    }
+
+    #[test]
+    fn scripted_setup_updates_the_install_already_in_the_folder() {
+        let custom = Path::new(r"C:\games\horizon_launcher");
+        let again = scripted_dir(Some(custom), Path::new(r"c:\Games\horizon_launcher\"));
+        assert_eq!(again, custom);
+        for installed in [None, Some(Path::new(r"C:\other"))] {
+            assert_eq!(scripted_dir(installed, custom), custom.join(APP_NAME));
+        }
+    }
+
+    #[test]
+    fn uninstall_removes_the_standard_folder_only_when_empty_and_says_when_it_stays() {
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().join(APP_NAME);
+        fs::create_dir(&dir).unwrap();
+        fs::write(dir.join(BINARY), b"x").unwrap();
+        fs::write(dir.join("notes.txt"), b"x").unwrap();
+        let mut left = Vec::new();
+        remove_install_files(&dir, &mut left);
+        assert!(!dir.join(BINARY).exists() && dir.join("notes.txt").is_file());
+        assert_eq!(left.len(), 1, "{left:?}");
+        assert!(left[0].starts_with(&*dir.to_string_lossy()), "{left:?}");
+        fs::remove_file(dir.join("notes.txt")).unwrap();
+        left.clear();
+        remove_install_files(&dir, &mut left);
+        assert!(left.is_empty(), "{left:?}");
+        assert!(!dir.exists());
+    }
+
+    /// Only the installed launcher steps aside, not another program in the chosen folder.
+    #[test]
+    fn the_installed_launcher_is_recognised_whatever_the_case() {
+        let exe = Path::new(r"D:\games\horizon-launcher.exe");
+        assert!(same_path(Path::new(r"d:\Games\Horizon-Launcher.EXE"), exe));
+        assert!(!same_path(
+            Path::new(r"D:\games\horizon-launcher-setup.exe"),
+            exe
+        ));
     }
 
     #[test]
