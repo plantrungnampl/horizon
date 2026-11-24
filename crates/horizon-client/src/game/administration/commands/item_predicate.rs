@@ -351,9 +351,6 @@ fn stack_matches_in(env: &PredicateEnv<'_>, predicate: &ItemInput, stack: &ItemS
                 };
                 if id == "minecraft:count" {
                     super::item_count::matches(stack.count, &want)
-                } else if matches!(id.as_str(), "minecraft:damage" | "minecraft:max_damage") {
-                    let info = env.items.get(&stack.item);
-                    horizon_items::durability::matches_component(stack, info, &id, &want)
                 } else {
                     match effective_value(env, stack, &components, &id) {
                         Some(have) => exact_component_equals(env, &id, &have, &want, 0),
@@ -2749,7 +2746,7 @@ mod tests {
         let (damage, extra) = match patch_snbt {
             Some(p) => {
                 let tag = snbt(p);
-                horizon_items::item_data::decode_components_for_item(item, None, Some(&tag))
+                horizon_items::item_data::decode_components_for_item(item, Some(&tag))
             }
             None => (0, None),
         };

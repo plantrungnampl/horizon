@@ -151,7 +151,7 @@ fn decode_item<'a>(
         _ => None,
     };
     let (damage, extra) =
-        crate::item_data::decode_components_for_item(&id, None, canonical.as_ref().or(saved));
+        crate::item_data::decode_components_for_item(&id, canonical.as_ref().or(saved));
     Some(crate::items::ItemStack {
         item: Arc::from(id.as_str()),
         count,
